@@ -37,13 +37,17 @@ case $rcMode in
 esac
 
 
-db='lestrade/orcl.jks.com'
+db='ora192rac-scan/pdb1.jks.com'
 username='evs'
 password='evs'
 
+baseDir=/mnt/vboxshare/trace-overhead
+mkdir -p $baseDir
+ln -s $baseDir .
+
 timestamp=$(date +%Y%m%d%H%M%S)
-traceDir=trace/${rcMode}-${traceLevel}-${timestamp}
-rcLogDir=trc-ovrhd
+traceDir=$baseDir/trace/${rcMode}-${traceLevel}-${timestamp}
+rcLogDir=$baseDir/trc-ovrhd
 rcLogFile=$rcLogDir/xact-count-${rcMode}-${traceLevel}-${timestamp}.log 
 traceFileID="TRC-OVRHD-$traceLevel-$timestamp"
 
@@ -57,12 +61,12 @@ mkdir -p $rcLogDir
 	--exe-mode sequential \
 	--connect-mode flood \
 	--tx-behavior commit \
-	--max-sessions 20 \
+	--max-sessions 50 \
 	--exe-delay 0 \
 	--db "$db" \
 	--username $username \
 	--password "$password" \
-	--runtime 300 \
+	--runtime 1200 \
 	--tracefile-id $traceFileID \
 	--xact-tally \
 	--xact-tally-file  $rcLogFile \
@@ -73,10 +77,11 @@ mkdir -p $rcLogDir
 
 #exit
 
-# cheating a bit as I know where the trace file are on the server
-# lestrade.jks.com:/opt/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_24103_RC-20230703142522.trc
+# cheating a bit as I know where the trace files are on the server
+# ora192rac01:/opt/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_24103_RC-20230703142522.trc
 [[ -n $traceArgs ]] && { 
-	scp -p oracle@lestrade.jks.com:/opt/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_*_${traceFileID}.trc $traceDir
+	scp -p oracle@ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/orcl_ora_*_${traceFileID}.trc $traceDir
+	scp -p oracle@ora192rac02:/u01/app/oracle/diag/rdbms/cdb/cdb2/trace/orcl_ora_*_${traceFileID}.trc $traceDir
 	echo Trace files are in $traceDir/
 	echo 
 }
