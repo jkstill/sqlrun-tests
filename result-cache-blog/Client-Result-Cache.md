@@ -413,10 +413,6 @@ Fortunately the DBD::Oracle module that is installed with Oracle is built with O
 
 All of the code and trace files used for this article are found here:  [pythian blog - Oracle Client Result Cache](https://github.com/pythian/blog-files/tree/oracle-client-result-cache)
 
-The sqlrun code as used in this article has been heavily modified to include some features useful for this test, namely the --pause-at-exit, --xact-tally,  --xact-tally-file, and --client-result-cache-trace options.
-
-Though initially developed for use with Oracle databases, sqlrun can also work with MySQL and PostgreSQL.
-
 Further details are found in the README.md in the github repo.
 
 The following Bash script is used as a driver:
@@ -581,6 +577,7 @@ The test environment is as follows:
 Oracle database is 19.3
 Oracle clients are 19.16
 Test software is Perl 5, with the DBI and DBD::Oracle modules
+
 
 
 ## Without Result Cache, no additional network latency

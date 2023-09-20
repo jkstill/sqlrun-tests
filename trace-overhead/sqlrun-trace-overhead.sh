@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 
 
+stMkdir () {
+	mkdir -p "$@"
+
+	[[ $? -ne 0 ]] && {
+		echo
+		echo failed to "mkdir -p $baseDir"
+		echo
+		exit 1
+	}
+
+}
+
 # convert to lower case
 typeset -l rcMode=$1
 typeset -l traceLevel=$2
@@ -37,12 +49,14 @@ case $rcMode in
 esac
 
 
-db='ora192rac-scan/pdb1.jks.com'
+db='ora192rac01/pdb1.jks.com'
+#db='lestrade/orcl.jks.com'
 username='evs'
 password='evs'
 
 baseDir=/mnt/vboxshare/trace-overhead
-mkdir -p $baseDir
+stMkdir -p $baseDir
+
 ln -s $baseDir .
 
 timestamp=$(date +%Y%m%d%H%M%S)
@@ -53,8 +67,10 @@ traceFileID="TRC-OVRHD-$traceLevel-$timestamp"
 
 [[ -n $traceArgs ]] && { traceArgs="$traceArgs --tracefile-id $traceFileID"; }
 
-[[ $rcMode == 'trace' ]] && { mkdir  -p $traceDir; }
-mkdir -p $rcLogDir
+[[ $rcMode == 'trace' ]] && { stMkdir  -p $traceDir; }
+
+
+stMkdir -p $rcLogDir
 
 #cat <<-EOF
 ./sqlrun.pl \
@@ -66,7 +82,7 @@ mkdir -p $rcLogDir
 	--db "$db" \
 	--username $username \
 	--password "$password" \
-	--runtime 1200 \
+	--runtime 600 \
 	--tracefile-id $traceFileID \
 	--xact-tally \
 	--xact-tally-file  $rcLogFile \
@@ -77,11 +93,28 @@ mkdir -p $rcLogDir
 
 #exit
 
+
+# do not continue until all sqlrun have exited
+while :
+do
+	echo checking for perl sqlrun to exit completely
+        chk=$(ps -flu$(id -un) | grep "[p]erl.*sqlrun")
+        [[ -z $chk ]] && { break; }
+        sleep 2
+done
+
+
 # cheating a bit as I know where the trace files are on the server
-# ora192rac01:/opt/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_24103_RC-20230703142522.trc
+# ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/
 [[ -n $traceArgs ]] && { 
-	scp -p oracle@ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/orcl_ora_*_${traceFileID}.trc $traceDir
-	scp -p oracle@ora192rac02:/u01/app/oracle/diag/rdbms/cdb/cdb2/trace/orcl_ora_*_${traceFileID}.trc $traceDir
+
+	# get the trace files and remove them
+	# space considerations require removing the trace files after retrieval
+	rsync -av --remove-source-files oracle@ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/*${traceFileID}.trc ${traceDir}/
+
+	# remove the .trm files
+	ssh oracle@ora192rac01 rm /u01/app/oracle/diag/rdbms/cdb/cdb1/trace/*${traceFileID}.trm
+
 	echo Trace files are in $traceDir/
 	echo 
 }

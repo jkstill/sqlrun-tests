@@ -1,4 +1,3 @@
-
 select count(*) ev_count
 from ev_locations el
 join cities ci on ci.city = el.city
@@ -11,4 +10,3 @@ join cities ci on ci.city = el.city
         and el.state = :5
 join ev_models m on m.make = el.make
         and m.model = el.model
-

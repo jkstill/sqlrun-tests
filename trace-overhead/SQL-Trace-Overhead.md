@@ -2,6 +2,16 @@
 Oracle SQL Trace: Is it Safe for Production Use?
 ============================================================
 
+Perhaps you have been approached by a client or manager and been given the task of troubleshooting one or more slow running SQL statements.
+
+The request may have been even more broad:  an application is slow, it has been determined that that problem must be the database, and so now it is on the DBA's desk. And you are the DBA.
+
+When trying to solve such problems it is not too unusual to start with an AWR report, examining the execution plans, and drilling down in ASH to determine where the problem lies.
+
+While some good information may have been found, maybe it wasn't quite enough information to determine the cause of the application slowness.
+
+While ASH, AWR and execution plans may be good at showing you where there may be some problems, they are not always enough show you just where a problem lies.
+
 
 ## Test Configuration
 
@@ -125,25 +135,7 @@ EVS is the `Electric Vehicles Sighting` Schema.
 
 The data was obtained from the [Electric Vehicle Population](https://catalog.data.gov/dataset/electric-vehicle-population-data) data set.
 
-
-
-see create-csv.sh
-
-
-
-cut -f7-8 -d,  /mnt/zips/zips/data-sets/data.gov/ev-population/Electric_Vehicle_Population_Data.csv | tail -n+2 | sort | uniq | sed -e 's/^ *//g' -e '/,$/d' > ev-models.csv
-
-
-http://goodcsv.com/geography/us-states-territories/
-
-
-grep -E '^(State|Federal District)' /mnt/zips/zips/data-sets/US-States/us-states-territories.csv | cut -d, -f2,3 |  sed -r -e 's/^ *//g' -e 's/ ,/,/' -e 's/\[.*\]//g' -e 's/\s+$//' > states.csv
-
-
-
-cut -f2-4 -d,  /mnt/zips/zips/data-sets/data.gov/ev-population/Electric_Vehicle_Population_Data.csv | tail -n+2 |  sort -u | sed -e 's/Doña /Dona /g' > cities.csv
-
-tail -n+2   /mnt/zips/zips/data-sets/data.gov/ev-population/Electric_Vehicle_Population_Data.csv | cut -f2,4 -d, | sort -u | sed -e 's/Doña /Dona /g' > counties.csv
+See [create-csv.sh]( PUT PYTHIAN REPO URL FOR FILE HERE)
 
 
 ====

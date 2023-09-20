@@ -1,4 +1,4 @@
-select /*+ RESULT_CACHE */ county,city,state
+select county,city,state
 from cities 
 where 
 	county = :1 

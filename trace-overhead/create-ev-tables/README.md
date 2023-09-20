@@ -24,3 +24,10 @@ tail -n+2   /mnt/zips/zips/data-sets/data.gov/ev-population/Electric_Vehicle_Pop
 
 A subset of cities.csv and ev-models.csv will be used as bind variables for sqlrun
 
+
+- create-tables.sql
+- create-csv.sh
+- sqlldrr.sh
+- ../SQL/Oracle/make-ev-sightings-file.sh
+  - this creates the bind variable placeholder files.
+
