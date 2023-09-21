@@ -12,6 +12,34 @@ While some good information may have been found, maybe it wasn't quite enough in
 
 While ASH, AWR and execution plans may be good at showing you where there may be some problems, they are not always enough show you just where a problem lies.
 
+The most accurate represenation of where time is spent during a database session is by invoking SQL Trace.
+
+There are multiple methods for doing this.
+
+- alter session set events '10046 trace name context forever, level [8|12]';
+- sys.dbms_system.set_ev(sid(n), serial(n), 10046, 8, '')
+- alter session set sql_trace=true;
+- [dbms_monitor](https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_MONITOR.html#GUID-951568BF-D798-4456-8478-15FEEBA0C78E)
+
+It is not unusual for a client or responsible user to object to using SQL Trace due to the additional overhead that tracing may incur.
+
+Of course there must be some overhead when tracing is enabled.
+
+The question is this:  Is the overhead more than the users can bear?
+
+The answer to the question may depend on several factors:
+
+- severity of the issue
+- how much it is impacting users
+- the urgency of resolving the issue
+
+The answer to these questions help determine if SQL Trace will impose an unbearable burden on the user of affected applications.
+
+So, just how much perceived  overhead is caused by SQL Trace?
+
+The answer is as it is with many things:  It depends.
+
+We can consdider the results of tests run with varying parameters.
 
 ## Test Configuration
 
@@ -30,7 +58,7 @@ While ASH, AWR and execution plans may be good at showing you where there may be
 * PL/SQL blocks can be used
 
 
-NOTE: Be sure to create and populate this branch.
+NOTE: Be sure to create and populate this branch in the Pythian Git Repo.
 
 All of the code and trace files used for this article are found here:  [pythian blog - Oracle Client Result Cache](https://github.com/pythian/blog-files/tree/oracle-trace-overhead)
 
@@ -38,8 +66,34 @@ Further details are found in the README.md in the github repo.
 
 The following Bash script is used as a driver:
 
+### EVS Schema
+
+EVS is the `Electric Vehicles Sighting` Schema.
+
+
+The data was obtained from the [Electric Vehicle Population](https://catalog.data.gov/dataset/electric-vehicle-population-data) data set.
+
+See [create-csv.sh]( PUT PYTHIAN REPO URL FOR FILE HERE)
+
+
+A subset of cities.csv and ev-models.csv will be used as bind variables for sqlrun
+
+### sqlrun-trace-overhead.sh
+
 ```bash
 #!/usr/bin/env bash
+
+stMkdir () {
+	mkdir -p "$@"
+
+	[[ $? -ne 0 ]] && {
+		echo
+		echo failed to "mkdir -p $baseDir"
+		echo
+		exit 1
+	}
+
+}
 
 # convert to lower case
 typeset -l rcMode=$1
@@ -77,12 +131,14 @@ case $rcMode in
 esac
 
 
-db='ora192rac-scan/pdb1.jks.com'
+db='ora192rac01/pdb1.jks.com'
+#db='lestrade/orcl.jks.com'
 username='evs'
 password='evs'
 
 baseDir=/mnt/vboxshare/trace-overhead
-mkdir -p $baseDir
+stMkdir -p $baseDir
+
 ln -s $baseDir .
 
 timestamp=$(date +%Y%m%d%H%M%S)
@@ -93,9 +149,12 @@ traceFileID="TRC-OVRHD-$traceLevel-$timestamp"
 
 [[ -n $traceArgs ]] && { traceArgs="$traceArgs --tracefile-id $traceFileID"; }
 
-[[ $rcMode == 'trace' ]] && { mkdir  -p $traceDir; }
-mkdir -p $rcLogDir
+[[ $rcMode == 'trace' ]] && { stMkdir  -p $traceDir; }
 
+
+stMkdir -p $rcLogDir
+
+#cat <<-EOF
 ./sqlrun.pl \
 	--exe-mode sequential \
 	--connect-mode flood \
@@ -105,19 +164,39 @@ mkdir -p $rcLogDir
 	--db "$db" \
 	--username $username \
 	--password "$password" \
-	--runtime 1200 \
+	--runtime 600 \
 	--tracefile-id $traceFileID \
 	--xact-tally \
 	--xact-tally-file  $rcLogFile \
 	--pause-at-exit \
 	--sqldir $(pwd)/SQL  $traceArgs
 
+#EOF
+
+#exit
+
+
+# do not continue until all sqlrun have exited
+while :
+do
+	echo checking for perl sqlrun to exit completely
+        chk=$(ps -flu$(id -un) | grep "[p]erl.*sqlrun")
+        [[ -z $chk ]] && { break; }
+        sleep 2
+done
+
 
 # cheating a bit as I know where the trace files are on the server
-# ora192rac01:/opt/oracle/diag/rdbms/orcl/orcl/trace/orcl_ora_24103_RC-20230703142522.trc
+# ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/
 [[ -n $traceArgs ]] && { 
-	scp -p oracle@ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/orcl_ora_*_${traceFileID}.trc $traceDir
-	scp -p oracle@ora192rac02:/u01/app/oracle/diag/rdbms/cdb/cdb2/trace/orcl_ora_*_${traceFileID}.trc $traceDir
+
+	# get the trace files and remove them
+	# space considerations require removing the trace files after retrieval
+	rsync -av --remove-source-files oracle@ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/*${traceFileID}.trc ${traceDir}/
+
+	# remove the .trm files
+	ssh oracle@ora192rac01 rm /u01/app/oracle/diag/rdbms/cdb/cdb1/trace/*${traceFileID}.trm
+
 	echo Trace files are in $traceDir/
 	echo 
 }
@@ -125,23 +204,7 @@ mkdir -p $rcLogDir
 echo RC Log is $rcLogFile
 echo 
 
-
 ```
-
-## EVS Schema
-
-EVS is the `Electric Vehicles Sighting` Schema.
-
-
-The data was obtained from the [Electric Vehicle Population](https://catalog.data.gov/dataset/electric-vehicle-population-data) data set.
-
-See [create-csv.sh]( PUT PYTHIAN REPO URL FOR FILE HERE)
-
-
-====
-
-A subset of cities.csv and ev-models.csv will be used as bind variables for sqlrun
-
 
 ## Testing
 
