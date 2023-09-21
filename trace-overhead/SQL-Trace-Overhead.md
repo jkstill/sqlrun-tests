@@ -2,13 +2,13 @@
 Oracle SQL Trace: Is it Safe for Production Use?
 ============================================================
 
-Perhaps you have been approached by a client or manager and been given the task of troubleshooting one or more slow running SQL statements.
+Perhaps you have been approached by a client or manager and given the task of troubleshooting one or more slow running SQL statements.
 
-The request may have been even more broad:  an application is slow, it has been determined that that problem must be the database, and so now it is on the DBA's desk. And you are the DBA.
+The request may have been even more broad: an application is slow, it has been determined that that problem must be the database, and so now it is on the DBA's desk. And you are the DBA.
 
 When trying to solve such problems it is not too unusual to start with an AWR report, examining the execution plans, and drilling down in ASH to determine where the problem lies.
 
-While some good information may have been found, maybe it wasn't quite enough information to determine the cause of the application slowness.
+While some good information may have been found, it may not quite enough information to determine the cause of the application slowness.
 
 While ASH, AWR and execution plans may be good at showing you where there may be some problems, they are not always enough show you just where a problem lies.
 
@@ -21,7 +21,7 @@ There are multiple methods for doing this.
 - alter session set sql_trace=true;
 - [dbms_monitor](https://docs.oracle.com/en/database/oracle/oracle-database/19/arpls/DBMS_MONITOR.html#GUID-951568BF-D798-4456-8478-15FEEBA0C78E)
 
-It is not unusual for a client or responsible user to object to using SQL Trace due to the additional overhead that tracing may incur.
+When requesting to run SQL Trace, the the client or responsible user may  object to using SQL Trace due to the additional overhead that tracing may incur.
 
 Of course there must be some overhead when tracing is enabled.
 
@@ -43,6 +43,8 @@ We can consdider the results of tests run with varying parameters.
 
 ## Test Configuration
 
+The way to determine if the overhead is acceptable is do do some testing.
+
 [sqlrun](https://github.com/jkstill/sqlrun) is a tool I developed for running SQL statements against a database using 1+ sessions.  It is highly configurable, following are some of the parameters and configuration possibilities:
 
 * number of sessions
@@ -57,14 +59,82 @@ We can consdider the results of tests run with varying parameters.
 * DML can be used
 * PL/SQL blocks can be used
 
+Testing will involve two servers: the database server, and the test software on another server.
 
-NOTE: Be sure to create and populate this branch in the Pythian Git Repo.
+Network latency between client and server is < 1ms.
+
+Two sets of tests will be run
+
+Note: 'no think time' means that the test SQL statements are run repeatedly in succession, as quickly as the client can submit them.
+
+- no think time
+  - latency is < 1ms
+- localt client, but with 0.5 seconds think time
+  - each client will pause 0.5 seconds between executions
+
+Each of those preceding tests will also run with multiople trace levels
+
+- no tracing
+- trace level 8
+- trace level 12
+
+
+There will be 50 clients per test.
+
+
+==>> NOTE: Be sure to create and populate this branch in the Pythian Git Repo.
 
 All of the code and trace files used for this article are found here:  [pythian blog - Oracle Client Result Cache](https://github.com/pythian/blog-files/tree/oracle-trace-overhead)
 
 Further details are found in the README.md in the github repo.
 
-The following Bash script is used as a driver:
+## Test Environment
+
+The test environment is as follows:
+
+* Database Server:
+** ora192rac01 (one node of a 2 node rac
+** allocated 4 vCPUs
+** 16 G RAM
+** 1G network
+* Client 
+** sqlrun
+** VM with 3 vCPUs
+** 8G RAM
+
+Oracle database is 19.12
+Oracle clients are 19.16
+Test software uses Perl 5, with the DBI and DBD::Oracle modules
+
+
+## Compiling Test Results
+
+CHANGE THIS - not used $af, but am using `cull-snmfc.rc`.
+
+The [mrskew](https://method-r.com/man/mrskew.pdf) utility is a tool created by [Method R](https://method-r.com/) (Cary Millsap and Jeff Holt).
+
+It is used to generate metrics from Oracle SQL Trace files.
+
+This testing makes use of the `mrskew` utility, and the `cull-snmfc.rc` file to skip 'SQL*Net message from client' events >= 1 second.
+
+```text
+# cull-snmfc.rc
+# Jared Still 2023
+# jkstill@gmail.com
+# exlude snmfc (SQL*Net message from client) if >= 1 second
+
+--init='
+
+=encoding utf8
+
+'
+
+--where1='($name =~ q{message from client} and $af < 1) or ! ( $name =~ q{message from client})'
+```
+
+If you are a user of the Method R Workbench, you may find this rc file useful.
+
+
 
 ### EVS Schema
 
@@ -78,7 +148,19 @@ See [create-csv.sh]( PUT PYTHIAN REPO URL FOR FILE HERE)
 
 A subset of cities.csv and ev-models.csv will be used as bind variables for sqlrun
 
+
 ### sqlrun-trace-overhead.sh
+
+This script is used to call `sqlrun.pl`.
+
+It accepts up to two parameters:
+
+- no-trace
+- trace [8|12]
+
+sqlrun.pl will start 50 clients that run for 10 minutes.
+
+The parameter `--exe-delay` was set to 0 for tests with no think time, and '0.5' for tests that allowed think time.
 
 ```bash
 #!/usr/bin/env bash
@@ -154,7 +236,6 @@ traceFileID="TRC-OVRHD-$traceLevel-$timestamp"
 
 stMkdir -p $rcLogDir
 
-#cat <<-EOF
 ./sqlrun.pl \
 	--exe-mode sequential \
 	--connect-mode flood \
@@ -171,11 +252,6 @@ stMkdir -p $rcLogDir
 	--pause-at-exit \
 	--sqldir $(pwd)/SQL  $traceArgs
 
-#EOF
-
-#exit
-
-
 # do not continue until all sqlrun have exited
 while :
 do
@@ -184,7 +260,6 @@ do
         [[ -z $chk ]] && { break; }
         sleep 2
 done
-
 
 # cheating a bit as I know where the trace files are on the server
 # ora192rac01:/u01/app/oracle/diag/rdbms/cdb/cdb1/trace/
@@ -206,55 +281,113 @@ echo
 
 ```
 
-## Testing
+### overhead.sh
 
-The testing will also use the `mrskew` option of `--where='$af<1'` to get test results, just as it was against the trace data from the application.
+The script `overhead.sh` was used to allow for unattended running of tests.
 
-As discussed previously, the 0.7 second value was used to discern between application induced SNMFC and user induced SNMFC.
-
-In automated testing there would normally be no such waits, but as seen later, there are two possible causes of lengthy SNMFC waits in this testing.
-
-The standard value of 1 second will be used, as there are no 'users'.  There may be some lengthy SNMFC values caused by Client Result Cache, and one caused the test harness.
-
-Each test will consist of 20 clients, each running for 20 minutes, with sql trace enabled.
-
-The tracing is at level 12, so it included waits as well as bind variable values.
-
-A total of 4 tests will be run:
-
-* No additional network latency (client and database are co-located)
-** without Client Result Cache
-** with Client Result Cache
-* Network latency of ~6ms added to simulate client 100 miles distant from database server.
-** without Client Result Cache
-** with Client Result Cache
-
-The driver script `sqlrun-rc.sh` will call sqlplus and run a script to set table annotations to FORCE or MANUAL for the tests.
-
-FORCE: the client will use client result cache
-MANUAL: the client will not use client result cache
+```bash
+#!/usr/bin/env bash
 
 
-## Test Environment
+# run these several times
+# pause-at-exit will timeout in 20 seconds for unattended running
 
-The test environment is as follows:
+for i in {1..3}
+do
 
-* Database Server:
-** Lestrade
-** i5 with single socket and 4 cores
-** 32 G RAM
-** 1G network
-* Client 1
-** Poirot
-** VM with 3 vCPUs
-** 8G RAM
-* Client 2
-** sqlrun
-** VM with 3 vCPUs
-** 8G RAM
+	./sqlrun-trace-overhead.sh no-trace 
 
-Oracle database is 19.3
-Oracle clients are 19.16
-Test software is Perl 5, with the DBI and DBD::Oracle modules
+	./sqlrun-trace-overhead.sh trace 8
+
+	./sqlrun-trace-overhead.sh trace 12
+done
+```
+
+## The Results
+
+The results are interesting
+
+First, let's consider the tests that used a 0.5 second think time.
+
+The number of transactions per client are recorded in a log at the end of each run.
+
+Log results are from `overhead-xact-sums.sh`
+
+The results are stored in directories named for the tests.
+
+```bash
+#!/usr/bin/env bash
+
+#for rcfile in trace-overhead-no-think-time/trc-ovrhd/* 
+for dir in trace-overhead-.5-sec-think-time trace-overhead-no-think-time
+do
+	echo
+	echo "dir: $dir"
+	echo
+
+	for traceLevel in 0 8 12
+	do
+		testNumber=0
+		echo "  Trace Level: $traceLevel"
+		for rcfile in $dir/trc-ovrhd/*-$traceLevel-*.log
+		do
+			(( testNumber++ ))
+			basefile=$(basename $rcfile)
+			xactCount=$(awk '{ x+=$2 }END{printf("%10d\n",x)}'  $rcfile)
+			printf "     Test: %1d  Transactions: %8d\n" $testNumber $xactCount
+		done
+		echo
+	done
+done
+
+echo
+```
+
+
+### 0.5 Seconds Think Time
+
+translate to tables?
+
+
+chart?
+
+dir: trace-overhead-.5-sec-think-time
+
+  Trace Level: 0
+     Test: 1  Transactions:    59386
+     Test: 2  Transactions:    59454
+     Test: 3  Transactions:    59476
+
+  Trace Level: 8
+     Test: 1  Transactions:    59415
+     Test: 2  Transactions:    59365
+     Test: 3  Transactions:    59334
+
+  Trace Level: 12
+     Test: 1  Transactions:    59411
+     Test: 2  Transactions:    59177
+     Test: 3  Transactions:    59200
+
+### 0 Seconds Think Time
+
+
+dir: trace-overhead-no-think-time
+
+  Trace Level: 0
+     Test: 1  Transactions:  7157228
+     Test: 2  Transactions:  6758097
+     Test: 3  Transactions:  6948090
+
+  Trace Level: 8
+     Test: 1  Transactions:  4529157
+     Test: 2  Transactions:  4195232
+     Test: 3  Transactions:  4509073
+
+  Trace Level: 12
+     Test: 1  Transactions:  4509640
+     Test: 2  Transactions:  4126749
+     Test: 3  Transactions:  4532872
+
+
 
 
