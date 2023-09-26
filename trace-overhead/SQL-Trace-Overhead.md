@@ -420,7 +420,7 @@ With 50 clients running for 10 minutes, with 0.5 seconds of think time between t
 
 The number of transactions for all tests with 0.5 seconds think time was between 59177 and 59476 transactions, which is fairly close to the estimate.
 
-The estimate f 60,000 did not account for any overhead, and so was optimistic.  It was not expected that 60k transactions would be reached.
+The estimate of 60,000 did not account for any overhead, and so was optimistic.  It was not expected that 60k transactions would be reached.
 
 At this rate, there are ~ 100 transactions per second being performed on the database.
 
@@ -434,7 +434,7 @@ Trace  Levels and Transaction  Counts
 |  12    | 59411   | 59177   | 59200   |
 
 
-The difference between tracing and not tracing would not be discernable by users.
+The difference between tracing and not tracing would not be discernible by users.
 
 
 We can see where the time was spent via level 8 and level 12 tracing, with a report for 1 set of the results each
@@ -460,7 +460,7 @@ DLM cross inst call completion       0.191174    0.0%      268  0.000713  0.0000
 TOTAL (42)                      29,844.014868  100.0%  291,288  0.102455  0.000000  0.659325
 ```
 
-The 'think time' value of 1 second that was built in to `cull-snmfc.rc` was changed from 1 to 0.5
+The 'think time' value of 1 second that was built into `cull-snmfc.rc` was changed from 1 to 0.5
 
 ```text
 $ mrskew --rc=cull-snmfc.rc trace-overhead-.5-sec-think-time/trace/trace-8-20230920190529/*.trc
@@ -482,7 +482,7 @@ TOTAL (42)                      49.194712  100.0%  231,923  0.000212  0.000000  
 ```
 
 
-Even though 50 clients ran for 600 seconds each, there was not much work done due to the 0.5 second think time built in to the test.
+Even though 50 clients ran for 600 seconds each, there was not much work done due to the 0.5 second think time built into the test.
 
 Only 8.35 seconds were spent EXECuting ~60k database calls.
 
@@ -564,7 +564,7 @@ Once you know it is safe to do so, you can dump bind values to trace if needed.
 Here is a mrskew report for one set of the Level 8 tests:
 
 ```text
-]$ mrskew --rc=cull-snmfc.rc  trace-overhead-no-think-time/trace/trace-8-20230920123320/*.trc
+$ mrskew --rc=cull-snmfc.rc  trace-overhead-no-think-time/trace/trace-8-20230920123320/*.trc
 CALL-NAME                           DURATION       %       CALLS      MEAN       MIN       MAX
 -----------------------------  -------------  ------  ----------  --------  --------  --------
 SQL*Net message from client    12,581.726556   47.9%   5,661,876  0.002222  0.000068  0.201148
@@ -720,7 +720,7 @@ On average, each write to the trace file consumes 6 microseconds, with a maximum
 
 A think time of 6 ms is roughly 1.5x the average transaction time, and should allow for maximizing the number transactions, without pushing the server so hard that runqueus get too long, and resource starvation sets in.
 
-So the same test were run again, but this time with `--exec-delay 0.006`.
+So the same tests were run again, but this time with `--exec-delay 0.006`.
 
 Here we can see how the database fared at this rate, without and with tracing.
 
@@ -736,9 +736,9 @@ Trace  Levels and Transaction  Counts
 
 While the peak transaction count of 3,884,741 is only about 54% of the transaction rate for the 0 second think time test, this test is a much more reasonable approximation of a rather busy database.
 
-The test parameter of setting a 6 ms think will allow for some overhead, such as backups of the archive logs and database, and some other normal processing.
+The test parameter of setting a 6 ms think time will allow for some overhead, such as backups of the archive logs and database, and some other normal processing.
 
-With Level 8 tracing, will users notice the 11.6% change in response time? It may not be all that noticable.
+With Level 8 tracing, will users notice the 11.6% change in response time? It may not be all that noticeable.
 
 Even with Level 12 tracing, an overhead of 15.7% may be tolerable for a period of time.
 
@@ -787,7 +787,7 @@ library cache: mutex X             10.028905    0.0%       2,106  0.004762  0.00
 TOTAL (51)                     28,972.562079  100.0%  15,415,727  0.001879  0.000000  3.784414
 ```
 
-Again, the modest number of SQL placeholders used did not really cause much of time penalty when a Level 12 trace was run.
+Again, the modest number of SQL placeholders used did not really cause much a of time penalty when a Level 12 trace was run.
 
 
 ## In Conclusion
@@ -796,7 +796,7 @@ Is there any reason to be afraid of enabling Oracle tracing?
 
 No, not really.
 
-The key to successfully using Oracle tracing in a production environments is to first make sure you know the database where tracing is to be enabled.
+The key to successfully using Oracle tracing in a production environment is to first make sure you know the database where tracing is to be enabled.
 
 If the system is quite busy, it may be necessary to first trace a single session to get a measurement of the overhead.
 
