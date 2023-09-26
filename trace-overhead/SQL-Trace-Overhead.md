@@ -45,7 +45,7 @@ So, just how much perceived overhead is caused by SQL Trace?
 
 The answer is as it is with many things: It depends.
 
-If the issue is causing much interruption of users work, they may not mind if tracing is enabled, even do think it may have some negative impact.
+If the issue is causing much interruption of users work, they may not mind if tracing is enabled, even if they do think it may have some negative impact.
 
 In other cases, the impact may be less severe, and users (and manaagers) are leery of anything that may cause further delays.
 
@@ -79,7 +79,7 @@ Note: 'no think time' means that the test SQL statements are run repeatedly in s
 
 - no think time
   - latency is < 1ms
-- localt client, but with 0.5 seconds think time
+- local client, but with 0.5 seconds think time
   - each client will pause 0.5 seconds between executions
 
 Each of those preceding tests will also run with multiple trace levels
@@ -90,9 +90,7 @@ Each of those preceding tests will also run with multiple trace levels
 
 There will be 50 clients per test.
 
-==>> NOTE: Be sure to create and populate this branch in the Pythian Git Repo.
-
-All of the code and trace files used for this article are found here: [pythian blog - Oracle Client Result Cache](https://github.com/pythian/blog-files/tree/oracle-trace-overhead)
+All of the code and trace files used for this article are found here: [pythian blog - Oracle Trace Overhead](https://github.com/pythian/blog-files/tree/oracle-trace-overhead)
 
 Further details are found in the README.md in the github repo.
 
@@ -439,6 +437,82 @@ Trace  Levels and Transaction  Counts
 The difference between tracing and not tracing would not be discernable by users.
 
 
+We can see where the time was spent via level 8 and level 12 tracing, with a report for 1 set of the results each
+
+Our built in think time of 0.5 seconds has resulted in rather skewed results 
+
+```text
+$ mrskew --rc=cull-snmfc.rc trace-overhead-.5-sec-think-time/trace/trace-8-20230920190529/*.trc
+CALL-NAME                            DURATION       %    CALLS      MEAN       MIN       MAX
+------------------------------  -------------  ------  -------  --------  --------  --------
+SQL*Net message from client     29,805.268316   99.9%   74,678  0.399117  0.000096  0.659325
+log file sync                       23.068209    0.1%   15,299  0.001508  0.000002  0.096168
+EXEC                                 8.353714    0.0%   60,899  0.000137  0.000000  0.034094
+enq: TX - index contention           2.494885    0.0%       99  0.025201  0.000067  0.037637
+buffer busy waits                    1.395004    0.0%    1,916  0.000728  0.000000  0.014468
+reliable message                     1.127232    0.0%      150  0.007515  0.000394  0.017183
+FETCH                                0.518977    0.0%   44,852  0.000012  0.000000  0.000942
+enq: SQ - contention                 0.287349    0.0%      159  0.001807  0.000011  0.004690
+latch: cache buffers chains          0.267296    0.0%       89  0.003003  0.000000  0.013789
+DLM cross inst call completion       0.191174    0.0%      268  0.000713  0.000000  0.014315
+32 others                            1.042712    0.0%   92,879  0.000011  0.000000  0.025532
+------------------------------  -------------  ------  -------  --------  --------  --------
+TOTAL (42)                      29,844.014868  100.0%  291,288  0.102455  0.000000  0.659325
+```
+
+The 'think time' value of 1 second that was built in to `cull-snmfc.rc` was changed from 1 to 0.5
+
+```text
+$ mrskew --rc=cull-snmfc.rc trace-overhead-.5-sec-think-time/trace/trace-8-20230920190529/*.trc
+CALL-NAME                        DURATION       %    CALLS      MEAN       MIN       MAX
+------------------------------  ---------  ------  -------  --------  --------  --------
+log file sync                   23.068209   46.9%   15,299  0.001508  0.000002  0.096168
+SQL*Net message from client     10.448160   21.2%   15,313  0.000682  0.000096  0.041637
+EXEC                             8.353714   17.0%   60,899  0.000137  0.000000  0.034094
+enq: TX - index contention       2.494885    5.1%       99  0.025201  0.000067  0.037637
+buffer busy waits                1.395004    2.8%    1,916  0.000728  0.000000  0.014468
+reliable message                 1.127232    2.3%      150  0.007515  0.000394  0.017183
+FETCH                            0.518977    1.1%   44,852  0.000012  0.000000  0.000942
+enq: SQ - contention             0.287349    0.6%      159  0.001807  0.000011  0.004690
+latch: cache buffers chains      0.267296    0.5%       89  0.003003  0.000000  0.013789
+DLM cross inst call completion   0.191174    0.4%      268  0.000713  0.000000  0.014315
+32 others                        1.042712    2.1%   92,879  0.000011  0.000000  0.025532
+------------------------------  ---------  ------  -------  --------  --------  --------
+TOTAL (42)                      49.194712  100.0%  231,923  0.000212  0.000000  0.096168
+```
+
+
+Even though 50 clients ran for 600 seconds each, there was not much work done due to the 0.5 second think time built in to the test.
+
+Only 8.35 seconds were spent EXECuting ~60k database calls.
+
+The rest is database overhead, mostly due to `log file sync` and normal client network traffic.
+
+Here is the report for the Level 12 trace:
+
+```text
+$ mrskew --rc=cull-snmfc.rc trace-overhead-.5-sec-think-time/trace/trace-12-20230920191552/*.trc
+CALL-NAME                        DURATION       %    CALLS      MEAN       MIN       MAX
+------------------------------  ---------  ------  -------  --------  --------  --------
+log file sync                   51.099850   64.7%   15,173  0.003368  0.000011  0.675610
+SQL*Net message from client     11.407758   14.5%   15,293  0.000746  0.000099  0.234836
+EXEC                             8.363528   10.6%   60,893  0.000137  0.000000  0.039199
+enq: TX - index contention       3.069491    3.9%      137  0.022405  0.000105  0.040529
+buffer busy waits                1.493510    1.9%    1,826  0.000818  0.000001  0.031146
+reliable message                 0.653565    0.8%      148  0.004416  0.000215  0.036889
+FETCH                            0.535304    0.7%   44,868  0.000012  0.000000  0.000895
+latch: cache buffers chains      0.320590    0.4%      109  0.002941  0.000001  0.021072
+DLM cross inst call completion   0.286908    0.4%      320  0.000897  0.000000  0.035637
+enq: SQ - contention             0.254433    0.3%      165  0.001542  0.000105  0.003494
+30 others                        1.444645    1.8%   93,031  0.000016  0.000000  0.039940
+------------------------------  ---------  ------  -------  --------  --------  --------
+TOTAL (40)                      78.929582  100.0%  231,963  0.000340  0.000000  0.675610
+```
+
+In this case, using Level 12 added very little overhead - the number of EXEC calls differed by only 6. There is also only a very small difference in EXEC calls.
+
+Next, a rather unsustainable load was put on the database, to see how the cost of tracing might escalate.
+
 ### 0 Seconds Think Time
 
 Let's consider the tests that were run with no think time.
@@ -461,9 +535,7 @@ Trace  Levels and Transaction  Counts
 
 The number of transactions decreased by ~ 40% whenever tracing was enabled.
 
-This should not be a surprise in this set to tests.
-
-The tracing level made little difference in the output. 
+This should not be a surprise in this set to tests.  The tracing level made little difference in the output. 
 
 There was no spare capacity on the server, so any extra tasks, such as writing trace files, was going to come at the expense of other processes.
 
@@ -471,9 +543,9 @@ Does this mean that if a database system is overloaded, Oracle tracing should no
 
 No. What it does mean is that you should be careful about how tracing is used.
 
-This test intentionally overloaed the database server, and then added more work by enabling Oracle trace on all 50 sessions.
+This test intentionally overloaded the database server, and then added more work by enabling Oracle trace on all 50 sessions.
 
-In real life, it would be much better to choose only a few sessions to trace, perhaps even just one session, without bind values, so a start can be made on learning where the performance problems lie.
+In real life, it would be much better to choose only a few sessions to trace on such a busy database, perhaps even just one session, without bind values, so a start can be made on learning where the performance problems lie.
 
 Why start with level 8 (no bind values)?
 
