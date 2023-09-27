@@ -1,0 +1,17 @@
+=head1
+
+			my $utlDBH=$self->{'UTLDBH'};
+			
+			if (defined $utlDBH) {
+				my $refType = ref $utlDBH;
+				print "REF type: $refType\n";
+				local $SIG{__WARN__} = sub {};
+				local $SIG{__DIE__} = sub {};
+				local $utlDBH->{PrintError} = 0;
+				local $utlDBH->{RaiseError} = 0;
+				eval $utlDBH->disconnect ;
+				if ($@) {;}
+			}
+
+=cut
+

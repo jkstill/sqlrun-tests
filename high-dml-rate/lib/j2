@@ -1,0 +1,41 @@
+#=head1
+
+	# create a connection for internal housekeeping
+	# such as creating AWR snapshots if needed
+	# cannot include ora_drcp unless it is actually an ora_drcp session
+	# ora_drcp => 0 causes 
+	# DBD::Oracle::db disconnect failed: ORA-24421: OCISessionRelease cannot be used to release this session.
+	my $utlDBH;
+	if ( $args{DRCP}{ora_drcp} ) {
+		print "Connecting via DRCP Session\n";
+		$utlDBH = DBI->connect(
+			qq(dbi:$args{DRIVER}:) . $args{DB},
+			$args{USERNAME},$args{PASSWORD},
+			{
+				RaiseError => 1,
+				AutoCommit => 0,
+				ora_session_mode => $args{DBCONNECTIONMODE},
+				ora_drcp => $args{DRCP}{ora_drcp},
+				ora_drcp_class =>  $args{DRCP}{ora_drcp_class}
+			}
+		);
+	} else {
+		print "Connecting via Dedicated Session\n";
+		$utlDBH = DBI->connect(
+			qq(dbi:$args{DRIVER}:) . $args{DB},
+			$args{USERNAME},$args{PASSWORD},
+			{
+				RaiseError => 1,
+				AutoCommit => 0,
+				ora_session_mode => $args{DBCONNECTIONMODE},
+			}
+		);
+	}
+
+	die "Connect to $args{DATABASE} failed \n" unless $utlDBH;
+
+	$utlDBH->{RowCacheSize} = $args{ROWCACHESIZE};
+
+	$args{'UTLDBH'} = $utlDBH;
+
+#=cut
