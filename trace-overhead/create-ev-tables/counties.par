@@ -1,6 +1,8 @@
 #userid = evs/evs@lestrade/orcl.jks.com
-userid = evs/evs@ora192rac01/pdb1.jks.com
+#userid = evs/evs@ora192rac01/pdb1.jks.com
 #userid = jkstill/grok@ora192rac01/pdb1.jks.com
+#userid = evs/evs@ora23c-free-01/freepdb1
+userid = evs/evs@19c01-japp/app_pdb01.jks.com
 control = counties.ctl
 log = counties.log
 bad = counties.bad
