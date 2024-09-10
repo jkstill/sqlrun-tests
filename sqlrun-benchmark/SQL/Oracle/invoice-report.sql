@@ -10,7 +10,7 @@ declare
 begin
 	select min(invoice_number), max(invoice_number)	into i_min_invoice_number, i_max_invoice_number from invoice_headers;
 
-	dbms_random.seed(to_number(to_char(sysdate,'sssssfx')));
+	dbms_random.seed(to_number(to_char(sysdate,'sssssfx')) * sys_context('userenv','sid') + sys_context('userenv','sessionid'));
 
 	i_low_invoice_number := trunc(dbms_random.value(i_min_invoice_number, i_max_invoice_number));
 	i_high_invoice_number := trunc(dbms_random.value(i_low_invoice_number, i_max_invoice_number));
