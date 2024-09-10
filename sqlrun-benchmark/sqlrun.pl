@@ -239,6 +239,7 @@ print "sqlFile: $sqlFile\n" if $verbose;
 if ($initHere) {
 	print "initializing...\n";
 	my $result = qx{create/create.sh $username $password $db};
+	die unless $result;
 }
 
 

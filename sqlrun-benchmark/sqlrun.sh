@@ -7,6 +7,8 @@ mkdir -p xaction-tally
 declare sessions=$1
 declare runtime=$2
 
+#create/create.sh jkstill grok 'lestrade/pdb01'
+
 ./sqlrun.pl \
 	--exe-mode sequential \
 	--tx-behavior commit \
