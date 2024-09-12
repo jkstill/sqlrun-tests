@@ -1,7 +1,10 @@
 
 Several different sets of tests. 
 
-Trace and strace  files not included in the repo.
+There are oracle trace files and possibly strace files in this repo.
 
-Keep this repo private, as who knows what may show up here.
+All traces files are generate from test data.
+
+No traces files from live systems are included.
+
 
